@@ -38,3 +38,56 @@ h1 {
   font-size: 19px;
   line-height: 1.6;
 }
+
+.posts-section {
+  margin-top: 24px;
+}
+
+.posts-section h2 {
+  margin: 0 0 16px;
+  font-size: 26px;
+}
+
+.post-list {
+  display: grid;
+  gap: 12px;
+}
+
+.post-item {
+  padding: 18px 20px;
+  background: #ffffff;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+}
+
+.post-meta {
+  margin-bottom: 8px;
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.post-item h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.post-item p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.status,
+.error {
+  padding: 16px 18px;
+  background: #ffffff;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+}
+
+.error {
+  border-color: #fecaca;
+  color: #b91c1c;
+  background: #fff7f7;
+}

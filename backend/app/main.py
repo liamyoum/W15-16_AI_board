@@ -1,8 +1,17 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 
 app = FastAPI(title="Jungle Campus Life AI FAQ Board")
+
+# 브라우저는 포트가 다르면 다른 출처로 보기 때문에, React 개발 서버의 요청을 허용한다.
+app.add_middleware(
+    CORSMiddleware, # CORS 처리를 해주는 미들웨어
+    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"], # 허용할 프론트엔드 주소
+    allow_methods=["*"], # 모든 HTTP 메서드 허용
+    allow_headers=["*"], # 모든 요청 헤더 허용
+)
 
 
 class PostResponse(BaseModel):
