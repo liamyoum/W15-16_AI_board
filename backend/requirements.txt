@@ -1,2 +1,4 @@
+# 이 백엔드 프로젝트를 실행하려면 어떤 Python 라이브러리가 필요한지 적는 파일 (Python 의존성 목록)
+# pip install -r requirements.txt로 프로젝트에 필요한 라이브러리를 설치하세요.
 fastapi==0.115.6
-uvicorn[standard]==0.34.0
+uvicorn[standard]==0.34.0 # FastAPI 앱을 실제 서버로 띄워주는, 앱을 실행해서 HTTP 요청을 받게 해주는 서버 프로그램 (ASGI server)
