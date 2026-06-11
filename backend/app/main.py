@@ -1,7 +1,45 @@
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 
 app = FastAPI(title="Jungle Campus Life AI FAQ Board")
+
+
+class PostResponse(BaseModel):
+    """프론트엔드에 보내는 FAQ 게시글 하나의 응답 모양이다.
+    지금은 정적 데이터에 쓰고, 나중에는 DB row를 이 모양으로 반환한다.
+    React는 이 타입의 필드 이름을 기준으로 화면을 만든다.
+    """
+
+    id: int
+    title: str
+    content: str
+    category: str
+
+
+class PostListResponse(BaseModel):
+    """GET /posts가 반환하는 게시글 목록 응답 모양이다.
+    목록을 posts 키로 감싸면 나중에 total, limit 같은 정보를 추가하기 쉽다. (객체를 반환)
+    """
+
+    posts: list[PostResponse]
+
+
+# DB를 붙이기 전까지 API 응답 모양을 확인하기 위한 임시 게시글 데이터다.
+STATIC_POSTS = [
+    {
+        "id": 1,
+        "title": "정글 캠퍼스 생활 안내는 어디서 확인하나요?",
+        "content": "캠퍼스 생활 안내 Notion 페이지를 기준으로 확인합니다.",
+        "category": "campus-life",
+    },
+    {
+        "id": 2,
+        "title": "비슷한 FAQ 추천은 어떤 기준으로 동작하나요?",
+        "content": "나중에 질문 제목과 본문을 embedding해서 유사한 FAQ를 찾을 예정입니다.",
+        "category": "ai-faq",
+    },
+]
 
 
 @app.get("/health")
@@ -12,3 +50,11 @@ def health_check():
     """
     return {"status": "ok"}
 
+
+@app.get("/posts", response_model=PostListResponse)
+def get_posts():
+    """FAQ 게시글 목록을 반환하는 첫 번째 게시판 API다.
+    지금은 정적 데이터를 반환하고, 다음 단계에서 DB 조회로 교체한다.
+    프론트엔드는 posts 배열을 state에 저장해 목록 화면을 만든다.
+    """
+    return {"posts": STATIC_POSTS}
