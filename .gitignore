@@ -9,6 +9,8 @@ __pycache__/
 # Node
 node_modules/
 dist/
+frontend/vite.config.js
+frontend/vite.config.d.ts
 *.tsbuildinfo
 
 # Environment
