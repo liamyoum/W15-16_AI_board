@@ -1,23 +1,7 @@
 import { useEffect, useState } from 'react';
+import { fetchPosts } from './api/posts';
 import PostItem from './PostItem';
-import type { Post, PostListResponse } from './types';
-
-const API_BASE_URL = 'http://127.0.0.1:8000';
-
-/** FastAPI의 GET /posts를 호출해 FAQ 게시글 배열을 가져온다.
- * fetch는 HTTP 응답 전체를 받고, response.json()이 body를 JS 객체로 바꾼다.
- * 실패 상태 코드는 화면에 에러를 보여주기 위해 Error로 바꿔 던진다.
- */
-async function fetchPosts() {
-	const response = await fetch(`${API_BASE_URL}/posts`);
-
-	if (!response.ok) {
-		throw new Error('게시글 목록을 불러오지 못했습니다.');
-	}
-
-	const data: PostListResponse = await response.json();
-	return data.posts;
-}
+import type { Post } from './types';
 
 /** 앱의 첫 화면을 담당하는 최상위 컴포넌트다.
  * 서버에서 받은 posts를 state로 관리하고, 로딩/에러/목록 화면을 결정한다.
