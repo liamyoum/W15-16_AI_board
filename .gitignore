@@ -22,3 +22,6 @@ frontend/vite.config.d.ts
 tmp/
 output/
 outputs/
+
+# Local learning notes
+docs/implementation_log/
