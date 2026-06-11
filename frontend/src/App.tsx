@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react';
-
-type Post = {
-	id: number;
-	title: string;
-	content: string;
-	category: string;
-};
-
-type PostListResponse = {
-	posts: Post[];
-};
+import PostItem from './PostItem';
+import type { Post, PostListResponse } from './types';
 
 const API_BASE_URL = 'http://127.0.0.1:8000';
 
@@ -26,19 +17,6 @@ async function fetchPosts() {
 
 	const data: PostListResponse = await response.json();
 	return data.posts;
-}
-
-/** 게시글 하나를 화면에 보여주는 재사용 컴포넌트다.
- * 부모(App)가 넘겨준 post props를 받아 제목, 카테고리, 본문을 표시한다.
- */
-function PostItem({ post }: { post: Post }) {
-	return (
-		<article className="post-item">
-			<div className="post-meta">{post.category}</div>
-			<h2>{post.title}</h2>
-			<p>{post.content}</p>
-		</article>
-	);
 }
 
 /** 앱의 첫 화면을 담당하는 최상위 컴포넌트다.
