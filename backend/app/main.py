@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from app.database import fetch_posts_from_db
+
 
 app = FastAPI(title="Jungle Campus Life AI FAQ Board")
 
@@ -34,23 +36,6 @@ class PostListResponse(BaseModel):
     posts: list[PostResponse]
 
 
-# DB를 붙이기 전까지 API 응답 모양을 확인하기 위한 임시 게시글 데이터다.
-STATIC_POSTS = [
-    {
-        "id": 1,
-        "title": "정글 캠퍼스 생활 안내는 어디서 확인하나요?",
-        "content": "캠퍼스 생활 안내 Notion 페이지를 기준으로 확인합니다.",
-        "category": "campus-life",
-    },
-    {
-        "id": 2,
-        "title": "비슷한 FAQ 추천은 어떤 기준으로 동작하나요?",
-        "content": "나중에 질문 제목과 본문을 embedding해서 유사한 FAQ를 찾을 예정입니다.",
-        "category": "ai-faq",
-    },
-]
-
-
 @app.get("/health")
 def health_check():
     """서버가 정상적으로 실행 중인지 확인하는 가장 작은 API다.
@@ -63,7 +48,7 @@ def health_check():
 @app.get("/posts", response_model=PostListResponse)
 def get_posts():
     """FAQ 게시글 목록을 반환하는 첫 번째 게시판 API다.
-    지금은 정적 데이터를 반환하고, 다음 단계에서 DB 조회로 교체한다.
+    PostgreSQL posts 테이블을 조회하고, 기존과 같은 응답 모양으로 감싼다.
     프론트엔드는 posts 배열을 state에 저장해 목록 화면을 만든다.
     """
-    return {"posts": STATIC_POSTS}
+    return {"posts": fetch_posts_from_db()}

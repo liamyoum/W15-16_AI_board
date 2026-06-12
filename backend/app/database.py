@@ -35,3 +35,22 @@ def check_database_connection() -> dict[str, str]:
         raise RuntimeError("DB 연결 확인 결과가 비어 있습니다.")
 
     return dict(row)
+
+
+def fetch_posts_from_db() -> list[dict[str, object]]:
+    """posts 테이블에서 FAQ 게시글 목록을 조회한다.
+    FastAPI 응답 모델과 맞도록 id, title, content, category만 가져온다.
+    지금은 raw SQL 흐름을 보기 위해 SQL 문자열을 직접 실행한다.
+    """
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT id, title, content, category
+                FROM posts
+                ORDER BY id
+                """
+            )
+            rows = cursor.fetchall()
+
+    return [dict(row) for row in rows]
