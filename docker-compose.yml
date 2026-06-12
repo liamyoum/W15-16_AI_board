@@ -1,0 +1,23 @@
+# FAQ 게시판 개발용 로컬 PostgreSQL 설정이다.
+# FastAPI는 다음 단계에서 이 데이터베이스에 연결한다.
+services:
+  postgres:
+    image: postgres:16
+    container_name: jungle-faq-postgres
+    restart: unless-stopped
+    environment:
+      # 로컬 개발용 계정 정보다. 실제 배포에서는 별도 secret을 사용해야 한다.
+      POSTGRES_DB: jungle_faq
+      POSTGRES_USER: jungle_user
+      POSTGRES_PASSWORD: jungle_password
+    ports:
+      # 내 컴퓨터의 5432 포트를 PostgreSQL 기본 포트인 컨테이너 5432에 연결한다.
+      - "5432:5432"
+    volumes:
+      # 컨테이너를 다시 만들어도 DB 데이터가 유지되도록 저장 공간을 연결한다.
+      - jungle-faq-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  jungle-faq-postgres-data:
+    # 예전 연습용 DB 데이터를 재사용하지 않도록 프로젝트 전용 volume을 사용한다.
+    name: jungle-faq-postgres-data
