@@ -1,3 +1,12 @@
+-- 가입한 사용자를 저장하는 테이블이다.
+-- 비밀번호 원문은 저장하지 않고, 서버에서 만든 password_hash만 저장한다.
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- FAQ 게시글을 저장하는 첫 번째 테이블이다.
 -- 지금은 최소 게시글 목록 조회에 필요한 필드만 만든다.
 CREATE TABLE IF NOT EXISTS posts (

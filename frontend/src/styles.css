@@ -51,6 +51,63 @@ h1 {
   border-radius: 8px;
 }
 
+.auth-section {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #dbe3ef;
+  border-radius: 8px;
+}
+
+.auth-section h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.auth-label {
+  margin: 0 0 4px;
+  color: #0f766e;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-email {
+  margin: 0;
+  color: #172033;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.auth-form {
+  display: grid;
+  gap: 14px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.auth-form input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  font: inherit;
+}
+
+.auth-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .create-section h2,
 .posts-section h2 {
   margin: 0 0 16px;
@@ -84,6 +141,7 @@ h1 {
   resize: vertical;
 }
 
+.auth-section button,
 .post-form button {
   justify-self: start;
   padding: 11px 16px;
@@ -96,6 +154,12 @@ h1 {
   cursor: pointer;
 }
 
+.auth-section .secondary-button {
+  background: #e2e8f0;
+  color: #172033;
+}
+
+.auth-section button:disabled,
 .post-form button:disabled {
   cursor: not-allowed;
   opacity: 0.7;

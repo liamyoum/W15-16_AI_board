@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fetchPosts } from './api/posts';
+import AuthPanel from './AuthPanel';
 import PostItem from './PostItem';
 import PostForm from './PostForm';
-import type { Post } from './types';
+import type { AuthResponse, Post, User } from './types';
 
 /** 앱의 첫 화면을 담당하는 최상위 컴포넌트다.
  * 서버에서 받은 posts를 state로 관리하고, 로딩/에러/목록 화면을 결정한다.
@@ -10,11 +11,22 @@ import type { Post } from './types';
  */
 function App() {
 	const [posts, setPosts] = useState<Post[]>([]); // 서버에서 받은 게시글 목록
-	const [isLoading, setIsLoading] = useState(true); // 로딩중인지 여부
+	const [isLoading, setIsLoading] = useState(false); // 로딩중인지 여부
 	const [loadError, setLoadError] = useState<string | null>(null); // 목록 조회 실패 메시지
+	const [currentUser, setCurrentUser] = useState<User | null>(() => {
+		const savedUser = localStorage.getItem('jungle-faq-user');
+		return savedUser ? (JSON.parse(savedUser) as User) : null;
+	});
 
-	// 화면이 처음 렌더링 된 후 fetchPosts()를 실행하는 곳
+	// 로그인된 사용자가 있을 때만 게시글을 불러온다.
 	useEffect(() => {
+		if (!currentUser) {
+			setPosts([]);
+			setIsLoading(false);
+			setLoadError(null);
+			return;
+		}
+
 		async function loadPosts() {
 			try {
 				setIsLoading(true);
@@ -33,7 +45,7 @@ function App() {
 		}
 
 		loadPosts();
-	}, []);
+	}, [currentUser]);
 
 	/** PostForm이 새 게시글 생성을 끝냈을 때 실행된다.
 	 * posts state는 App이 가지고 있으므로, 목록 갱신도 App에서 처리한다.
@@ -41,6 +53,25 @@ function App() {
 	 */
 	function handlePostCreated(createdPost: Post) {
 		setPosts((currentPosts) => [...currentPosts, createdPost]);
+	}
+
+	/** AuthPanel에서 회원가입/로그인이 성공했을 때 실행된다.
+	 * 토큰은 다음 인증 API 요청에 쓰기 위해 localStorage에도 저장한다.
+	 */
+	function handleAuthSuccess(auth: AuthResponse) {
+		setCurrentUser(auth.user);
+		localStorage.setItem('jungle-faq-user', JSON.stringify(auth.user));
+		// 토큰은 화면에 표시하지 않고, 다음 인증 API 요청을 위해 브라우저에 저장한다.
+		localStorage.setItem('jungle-faq-token', auth.access_token);
+	}
+
+	/** 현재 브라우저에 저장된 로그인 정보를 지운다.
+	 * 서버 세션을 쓰지 않는 v1 구조라서 클라이언트의 토큰 제거가 로그아웃이다.
+	 */
+	function handleLogout() {
+		setCurrentUser(null);
+		localStorage.removeItem('jungle-faq-user');
+		localStorage.removeItem('jungle-faq-token');
 	}
 
 	return (
@@ -54,34 +85,44 @@ function App() {
 				</p>
 			</section>
 
-			{/* App이 만든 함수를 PostForm의 onPostCreated props로 넘긴다.
-			    PostForm은 저장 성공 후 이 함수를 호출해 App의 posts 갱신을 요청한다. */}
-			<PostForm onPostCreated={handlePostCreated} />
+			<AuthPanel
+				currentUser={currentUser}
+				onAuthSuccess={handleAuthSuccess}
+				onLogout={handleLogout}
+			/>
 
-			<section
-				className="posts-section"
-				aria-labelledby="posts-heading"
-			>
-				<h2 id="posts-heading">FAQ 게시글</h2>
+			{currentUser && (
+				<>
+					{/* App이 만든 함수를 PostForm의 onPostCreated props로 넘긴다.
+					    PostForm은 저장 성공 후 이 함수를 호출해 App의 posts 갱신을 요청한다. */}
+					<PostForm onPostCreated={handlePostCreated} />
 
-				{isLoading && (
-					<p className="status">게시글을 불러오는 중입니다.</p>
-				)}
+					<section
+						className="posts-section"
+						aria-labelledby="posts-heading"
+					>
+						<h2 id="posts-heading">FAQ 게시글</h2>
 
-				{loadError && <p className="error">{loadError}</p>}
+						{isLoading && (
+							<p className="status">게시글을 불러오는 중입니다.</p>
+						)}
 
-				{!isLoading && !loadError && posts.length === 0 && (
-					<p className="status">아직 게시글이 없습니다.</p>
-				)}
+						{loadError && <p className="error">{loadError}</p>}
 
-				{!isLoading && !loadError && posts.length > 0 && (
-					<div className="post-list">
-						{posts.map((post) => (
-							<PostItem key={post.id} post={post} />
-						))}
-					</div>
-				)}
-			</section>
+						{!isLoading && !loadError && posts.length === 0 && (
+							<p className="status">아직 게시글이 없습니다.</p>
+						)}
+
+						{!isLoading && !loadError && posts.length > 0 && (
+							<div className="post-list">
+								{posts.map((post) => (
+									<PostItem key={post.id} post={post} />
+								))}
+							</div>
+						)}
+					</section>
+				</>
+			)}
 		</main>
 	);
 }

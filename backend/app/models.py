@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, Text, func
+from sqlalchemy import DateTime, Integer, String, Text, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -9,6 +9,22 @@ class Base(DeclarativeBase):
     Base를 상속한 클래스는 DB 테이블과 매핑되는 모델로 등록된다.
     나중에 여러 테이블 모델이 생기면 모두 이 Base를 공유한다.
     """
+
+
+class User(Base):
+    """users 테이블과 대응되는 SQLAlchemy 모델이다.
+    회원가입/로그인에 필요한 이메일과 비밀번호 해시를 저장한다.
+    비밀번호 원문은 저장하지 않고 password_hash만 저장한다.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class Post(Base):

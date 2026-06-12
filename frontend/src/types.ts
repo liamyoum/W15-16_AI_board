@@ -16,3 +16,22 @@ export type PostCreateRequest = {
 export type PostListResponse = {
 	posts: Post[];
 };
+
+// 로그인 후 화면과 API 요청에서 사용할 사용자 정보다.
+export type User = {
+	id: number;
+	email: string;
+};
+
+// 회원가입/로그인 요청 body와 같은 데이터 모양이다.
+export type AuthRequest = {
+	email: string;
+	password: string;
+};
+
+// 백엔드가 회원가입/로그인 성공 시 반환하는 응답 모양이다.
+export type AuthResponse = {
+	access_token: string;
+	token_type: 'bearer';
+	user: User;
+};

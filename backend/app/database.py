@@ -1,10 +1,13 @@
 from collections.abc import Generator
+import hashlib
 import os
+import secrets
 
 from sqlalchemy import create_engine, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models import Post
+from app.models import Base, Post, User
 
 
 # 로컬 개발 기본값이다. 배포할 때는 DATABASE_URL 환경변수로 실제 DB 주소를 넣는다.
@@ -24,6 +27,95 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL)
 
 # SessionLocal은 요청마다 사용할 SQLAlchemy Session을 만들어주는 공장 함수다.
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+
+def ensure_database_schema() -> None:
+    """현재 SQLAlchemy 모델 기준으로 필요한 테이블을 준비한다.
+    기존 Docker volume은 init.sql을 다시 실행하지 않으므로 코드에서도 테이블을 보강한다.
+    학습용 방식이며, 실제 서비스에서는 Alembic 같은 마이그레이션 도구를 쓴다.
+    """
+    Base.metadata.create_all(bind=engine)
+
+
+def _normalize_email(email: str) -> str:
+    """이메일 비교가 흔들리지 않도록 앞뒤 공백을 제거하고 소문자로 맞춘다."""
+    return email.strip().lower()
+
+
+def _hash_password(password: str) -> str:
+    """비밀번호 원문을 DB에 저장하지 않기 위해 PBKDF2 해시로 바꾼다.
+    salt를 함께 저장해 같은 비밀번호도 사용자마다 다른 해시가 되게 한다.
+    오늘은 외부 라이브러리 없이 기본 인증 흐름을 이해하는 데 초점을 둔다.
+    """
+    salt = secrets.token_hex(16)
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt.encode("utf-8"), 120_000
+    ).hex()
+    return f"pbkdf2_sha256${salt}${digest}"
+
+
+def _verify_password(password: str, password_hash: str) -> bool:
+    """로그인 시 입력한 비밀번호가 저장된 해시와 맞는지 확인한다.
+    원문 비밀번호끼리 비교하지 않고, 같은 방식으로 다시 해시한 결과를 비교한다.
+    """
+    try:
+        algorithm, salt, saved_digest = password_hash.split("$", 2)
+    except ValueError:
+        return False
+
+    if algorithm != "pbkdf2_sha256":
+        return False
+
+    digest = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt.encode("utf-8"), 120_000
+    ).hex()
+    return secrets.compare_digest(digest, saved_digest)
+
+
+def _user_to_dict(user: User) -> dict[str, object]:
+    """DB User 객체를 프론트엔드 응답에 필요한 안전한 dict로 바꾼다.
+    password_hash는 인증 내부 값이므로 절대 응답에 포함하지 않는다.
+    """
+    return {"id": user.id, "email": user.email}
+
+
+def create_user_with_sqlalchemy(email: str, password: str) -> dict[str, object]:
+    """회원가입 요청으로 새 사용자를 DB에 저장한다.
+    중복 이메일이면 ValueError를 발생시켜 API 라우터가 400 응답으로 바꾼다.
+    성공하면 프론트엔드에 보여줄 사용자 정보만 반환한다.
+    """
+    user = User(email=_normalize_email(email), password_hash=_hash_password(password))
+
+    with SessionLocal() as session:
+        try:
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+            return _user_to_dict(user)
+        except IntegrityError as exc:
+            session.rollback()
+            raise ValueError("이미 가입된 이메일입니다.") from exc
+
+
+def authenticate_user_with_sqlalchemy(
+    email: str, password: str
+) -> dict[str, object] | None:
+    """로그인 요청의 이메일/비밀번호가 맞는지 확인한다.
+    성공하면 사용자 dict를 반환하고, 실패하면 None을 반환한다.
+    """
+    with SessionLocal() as session:
+        user = session.scalar(select(User).where(User.email == _normalize_email(email)))
+        if user is None or not _verify_password(password, user.password_hash):
+            return None
+
+        return _user_to_dict(user)
+
+
+def get_user_by_id_with_sqlalchemy(user_id: int) -> dict[str, object] | None:
+    """토큰에서 꺼낸 user_id가 실제 DB 사용자와 연결되는지 확인한다."""
+    with SessionLocal() as session:
+        user = session.get(User, user_id)
+        return _user_to_dict(user) if user else None
 
 
 def fetch_posts_with_sqlalchemy() -> list[dict[str, object]]:
