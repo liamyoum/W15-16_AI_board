@@ -3,3 +3,4 @@
 fastapi==0.115.6
 uvicorn[standard]==0.34.0 # FastAPI 앱을 실제 서버로 띄워주는, 앱을 실행해서 HTTP 요청을 받게 해주는 서버 프로그램 (ASGI server)
 psycopg[binary]>=3.2,<4 # Python 코드에서 PostgreSQL에 접속하기 위한 DB 드라이버
+SQLAlchemy>=2.0,<3 # Python 객체와 Session으로 DB를 다루게 해주는 ORM/쿼리 도구
