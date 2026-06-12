@@ -1,6 +1,7 @@
-import { type FormEvent, useEffect, useState } from 'react';
-import { createPost, fetchPosts } from './api/posts';
+import { useEffect, useState } from 'react';
+import { fetchPosts } from './api/posts';
 import PostItem from './PostItem';
+import PostForm from './PostForm';
 import type { Post } from './types';
 
 /** 앱의 첫 화면을 담당하는 최상위 컴포넌트다.
@@ -11,11 +12,6 @@ function App() {
 	const [posts, setPosts] = useState<Post[]>([]); // 서버에서 받은 게시글 목록
 	const [isLoading, setIsLoading] = useState(true); // 로딩중인지 여부
 	const [loadError, setLoadError] = useState<string | null>(null); // 목록 조회 실패 메시지
-	const [formError, setFormError] = useState<string | null>(null); // 작성 폼 실패 메시지
-	const [title, setTitle] = useState('');
-	const [content, setContent] = useState('');
-	const [category, setCategory] = useState('campus-life');
-	const [isSubmitting, setIsSubmitting] = useState(false);
 
 	// 화면이 처음 렌더링 된 후 fetchPosts()를 실행하는 곳
 	useEffect(() => {
@@ -39,42 +35,12 @@ function App() {
 		loadPosts();
 	}, []);
 
-	/** 작성 폼 제출을 처리한다.
-	 * 기본 새로고침을 막고, 입력값을 POST /posts로 보낸다.
-	 * 성공하면 반환된 게시글을 목록 state에 추가한다.
+	/** PostForm이 새 게시글 생성을 끝냈을 때 실행된다.
+	 * posts state는 App이 가지고 있으므로, 목록 갱신도 App에서 처리한다.
+	 * 이 함수는 PostForm에 props로 전달되고, 저장 성공 시 PostForm이 호출한다.
 	 */
-	async function handleCreatePost(event: FormEvent<HTMLFormElement>) {
-		event.preventDefault();
-
-		const trimmedTitle = title.trim();
-		const trimmedContent = content.trim();
-		const trimmedCategory = category.trim();
-
-		if (!trimmedTitle || !trimmedContent || !trimmedCategory) {
-			setFormError('제목, 본문, 카테고리를 모두 입력하세요.');
-			return;
-		}
-
-		try {
-			setIsSubmitting(true);
-			setFormError(null);
-			const createdPost = await createPost({
-				title: trimmedTitle,
-				content: trimmedContent,
-				category: trimmedCategory,
-			});
-
-			setPosts((currentPosts) => [...currentPosts, createdPost]);
-			setTitle('');
-			setContent('');
-			setCategory('campus-life');
-		} catch (err) {
-			setFormError(
-				err instanceof Error ? err.message : '게시글 작성에 실패했습니다.'
-			);
-		} finally {
-			setIsSubmitting(false);
-		}
+	function handlePostCreated(createdPost: Post) {
+		setPosts((currentPosts) => [...currentPosts, createdPost]);
 	}
 
 	return (
@@ -88,47 +54,9 @@ function App() {
 				</p>
 			</section>
 
-			<section
-				className="create-section"
-				aria-labelledby="create-heading"
-			>
-				<h2 id="create-heading">FAQ 작성</h2>
-				<form className="post-form" onSubmit={handleCreatePost}>
-					<label>
-						<span>제목</span>
-						<input
-							value={title}
-							onChange={(event) => setTitle(event.target.value)}
-							placeholder="예: 캠퍼스 생활 안내는 어디서 확인하나요?"
-						/>
-					</label>
-
-					<label>
-						<span>본문</span>
-						<textarea
-							value={content}
-							onChange={(event) => setContent(event.target.value)}
-							placeholder="질문이나 안내 내용을 입력하세요."
-							rows={4}
-						/>
-					</label>
-
-					<label>
-						<span>카테고리</span>
-						<input
-							value={category}
-							onChange={(event) => setCategory(event.target.value)}
-							placeholder="campus-life"
-						/>
-					</label>
-
-					<button type="submit" disabled={isSubmitting}>
-						{isSubmitting ? '저장 중...' : '게시글 저장'}
-					</button>
-
-					{formError && <p className="error">{formError}</p>}
-				</form>
-			</section>
+			{/* App이 만든 함수를 PostForm의 onPostCreated props로 넘긴다.
+			    PostForm은 저장 성공 후 이 함수를 호출해 App의 posts 갱신을 요청한다. */}
+			<PostForm onPostCreated={handlePostCreated} />
 
 			<section
 				className="posts-section"
