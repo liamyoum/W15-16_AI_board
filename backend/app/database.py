@@ -3,8 +3,10 @@ import os
 
 import psycopg
 from psycopg.rows import dict_row
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session, sessionmaker
+
+from app.models import Post
 
 
 # 로컬 개발 기본값이다. 배포할 때는 DATABASE_URL 환경변수로 실제 DB 주소를 넣는다.
@@ -69,6 +71,25 @@ def fetch_posts_from_db() -> list[dict[str, object]]:
             rows = cursor.fetchall()
 
     return [dict(row) for row in rows]
+
+
+def fetch_posts_with_sqlalchemy() -> list[dict[str, object]]:
+    """SQLAlchemy Session과 Post 모델로 FAQ 게시글 목록을 조회한다.
+    응답 모양은 기존 GET /posts와 같게 유지한다.
+    raw SQL 함수와 비교할 수 있도록 이번 단계에서는 새 함수로 둔다.
+    """
+    with SessionLocal() as session:
+        posts = session.scalars(select(Post).order_by(Post.id)).all()
+
+    return [
+        {
+            "id": post.id,
+            "title": post.title,
+            "content": post.content,
+            "category": post.category,
+        }
+        for post in posts
+    ]
 
 
 def get_db_session() -> Generator[Session, None, None]:

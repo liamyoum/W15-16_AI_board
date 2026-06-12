@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.database import fetch_posts_from_db
+from app.database import fetch_posts_with_sqlalchemy
 
 
 app = FastAPI(title="Jungle Campus Life AI FAQ Board")
@@ -48,7 +48,7 @@ def health_check():
 @app.get("/posts", response_model=PostListResponse)
 def get_posts():
     """FAQ 게시글 목록을 반환하는 첫 번째 게시판 API다.
-    PostgreSQL posts 테이블을 조회하고, 기존과 같은 응답 모양으로 감싼다.
+    SQLAlchemy로 PostgreSQL posts 테이블을 조회하고 응답 모양을 유지한다.
     프론트엔드는 posts 배열을 state에 저장해 목록 화면을 만든다.
     """
-    return {"posts": fetch_posts_from_db()}
+    return {"posts": fetch_posts_with_sqlalchemy()}
