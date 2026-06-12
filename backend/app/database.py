@@ -5,7 +5,7 @@ import secrets
 
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import Session, selectinload, sessionmaker
 
 from app.models import Base, Post, User
 
@@ -35,6 +35,14 @@ def ensure_database_schema() -> None:
     학습용 방식이며, 실제 서비스에서는 Alembic 같은 마이그레이션 도구를 쓴다.
     """
     Base.metadata.create_all(bind=engine)
+    with engine.begin() as connection:
+        # 기존 Docker volume의 posts 테이블에는 새 컬럼이 없을 수 있어 로컬 학습용으로 보강한다.
+        connection.execute(
+            text(
+                "ALTER TABLE posts "
+                "ADD COLUMN IF NOT EXISTS author_id INTEGER REFERENCES users(id) ON DELETE SET NULL"
+            )
+        )
 
 
 def _normalize_email(email: str) -> str:
@@ -77,6 +85,19 @@ def _user_to_dict(user: User) -> dict[str, object]:
     password_hash는 인증 내부 값이므로 절대 응답에 포함하지 않는다.
     """
     return {"id": user.id, "email": user.email}
+
+
+def _post_to_dict(post: Post) -> dict[str, object]:
+    """DB Post 객체를 프론트엔드 응답에 맞는 dict로 바꾼다.
+    author 관계가 있으면 작성자 이메일을 함께 내려 수정/삭제 UI 판단에 사용한다.
+    """
+    return {
+        "id": post.id,
+        "title": post.title,
+        "content": post.content,
+        "category": post.category,
+        "author_email": post.author.email if post.author else None,
+    }
 
 
 def create_user_with_sqlalchemy(email: str, password: str) -> dict[str, object]:
@@ -124,37 +145,99 @@ def fetch_posts_with_sqlalchemy() -> list[dict[str, object]]:
     DB row를 Post 객체로 받은 뒤 API 응답용 dict로 바꾼다.
     """
     with SessionLocal() as session:
-        posts = session.scalars(select(Post).order_by(Post.id)).all()
+        posts = session.scalars(
+            select(Post).options(selectinload(Post.author)).order_by(Post.id)
+        ).all()
 
-    return [
-        {
-            "id": post.id,
-            "title": post.title,
-            "content": post.content,
-            "category": post.category,
-        }
-        for post in posts
-    ]
+    return [_post_to_dict(post) for post in posts]
 
 
-def create_post_with_sqlalchemy(title: str, content: str, category: str) -> dict[str, object]:
+def get_post_with_sqlalchemy(post_id: int) -> dict[str, object] | None:
+    """id로 게시글 하나를 조회한다.
+    없는 id면 None을 반환해 라우터가 404로 바꿀 수 있게 한다.
+    """
+    with SessionLocal() as session:
+        post = session.scalar(
+            select(Post)
+            .options(selectinload(Post.author))
+            .where(Post.id == post_id)
+        )
+        return _post_to_dict(post) if post else None
+
+
+def create_post_with_sqlalchemy(
+    title: str, content: str, category: str, author_id: int
+) -> dict[str, object]:
     """SQLAlchemy로 새 FAQ 게시글을 DB에 저장한다.
     commit으로 INSERT를 확정하고, refresh로 DB가 만든 id를 객체에 반영한다.
     API 응답 모양에 맞게 생성된 Post 객체를 dict로 바꿔 반환한다.
     """
-    post = Post(title=title, content=content, category=category)
+    post = Post(
+        title=title, content=content, category=category, author_id=author_id
+    )
 
     with SessionLocal() as session:
         session.add(post)
         session.commit()
         session.refresh(post)
 
-        return {
-            "id": post.id,
-            "title": post.title,
-            "content": post.content,
-            "category": post.category,
-        }
+        post = session.scalar(
+            select(Post)
+            .options(selectinload(Post.author))
+            .where(Post.id == post.id)
+        )
+        return _post_to_dict(post)
+
+
+def update_post_with_sqlalchemy(
+    post_id: int,
+    user_id: int,
+    title: str | None,
+    content: str | None,
+    category: str | None,
+) -> dict[str, object] | None:
+    """게시글을 부분 수정한다.
+    작성자 본인만 수정할 수 있게 author_id와 현재 user_id를 비교한다.
+    None으로 들어온 필드는 기존 값을 유지한다.
+    """
+    with SessionLocal() as session:
+        post = session.scalar(
+            select(Post)
+            .options(selectinload(Post.author))
+            .where(Post.id == post_id)
+        )
+        if post is None:
+            return None
+        if post.author_id != user_id:
+            raise PermissionError("게시글 작성자만 수정할 수 있습니다.")
+
+        if title is not None:
+            post.title = title
+        if content is not None:
+            post.content = content
+        if category is not None:
+            post.category = category
+
+        session.commit()
+        session.refresh(post)
+        return _post_to_dict(post)
+
+
+def delete_post_with_sqlalchemy(post_id: int, user_id: int) -> bool:
+    """게시글을 삭제한다.
+    작성자 본인만 삭제할 수 있게 author_id와 현재 user_id를 비교한다.
+    삭제할 글이 없으면 False를 반환해 라우터가 404로 바꿀 수 있게 한다.
+    """
+    with SessionLocal() as session:
+        post = session.get(Post, post_id)
+        if post is None:
+            return False
+        if post.author_id != user_id:
+            raise PermissionError("게시글 작성자만 삭제할 수 있습니다.")
+
+        session.delete(post)
+        session.commit()
+        return True
 
 
 def get_db_session() -> Generator[Session, None, None]:

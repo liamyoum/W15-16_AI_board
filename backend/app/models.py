@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from datetime import datetime
 
-from sqlalchemy import DateTime, Integer, String, Text, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -25,17 +27,21 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    posts: Mapped[list[Post]] = relationship(back_populates="author")
 
 
 class Post(Base):
     """PostgreSQL posts 테이블과 대응되는 SQLAlchemy 모델이다.
     DB row 하나를 Python 객체 하나처럼 다루기 위한 클래스다.
-    아직 조회 라우터에는 연결하지 않고, 다음 단계에서 사용한다.
+    author_id로 작성자 User와 연결해 수정/삭제 권한을 확인한다.
     """
 
     __tablename__ = "posts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    author_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(Text, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     category: Mapped[str] = mapped_column(Text, nullable=False)
@@ -43,3 +49,4 @@ class Post(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+    author: Mapped[User | None] = relationship(back_populates="posts")

@@ -15,8 +15,12 @@ function App() {
 	const [loadError, setLoadError] = useState<string | null>(null); // 목록 조회 실패 메시지
 	const [currentUser, setCurrentUser] = useState<User | null>(() => {
 		const savedUser = localStorage.getItem('jungle-faq-user');
-		return savedUser ? (JSON.parse(savedUser) as User) : null;
+		const savedToken = localStorage.getItem('jungle-faq-token');
+		return savedUser && savedToken ? (JSON.parse(savedUser) as User) : null;
 	});
+	const [accessToken, setAccessToken] = useState(
+		() => localStorage.getItem('jungle-faq-token') ?? ''
+	);
 
 	// 로그인된 사용자가 있을 때만 게시글을 불러온다.
 	useEffect(() => {
@@ -55,11 +59,32 @@ function App() {
 		setPosts((currentPosts) => [...currentPosts, createdPost]);
 	}
 
+	/** PostItem에서 게시글 수정이 성공했을 때 실행된다.
+	 * 같은 id의 게시글만 새 응답으로 바꿔 목록 화면을 최신 상태로 만든다.
+	 */
+	function handlePostUpdated(updatedPost: Post) {
+		setPosts((currentPosts) =>
+			currentPosts.map((post) =>
+				post.id === updatedPost.id ? updatedPost : post
+			)
+		);
+	}
+
+	/** PostItem에서 게시글 삭제가 성공했을 때 실행된다.
+	 * 삭제된 id를 목록 state에서 제거해 화면에서도 사라지게 한다.
+	 */
+	function handlePostDeleted(postId: number) {
+		setPosts((currentPosts) =>
+			currentPosts.filter((post) => post.id !== postId)
+		);
+	}
+
 	/** AuthPanel에서 회원가입/로그인이 성공했을 때 실행된다.
 	 * 토큰은 다음 인증 API 요청에 쓰기 위해 localStorage에도 저장한다.
 	 */
 	function handleAuthSuccess(auth: AuthResponse) {
 		setCurrentUser(auth.user);
+		setAccessToken(auth.access_token);
 		localStorage.setItem('jungle-faq-user', JSON.stringify(auth.user));
 		// 토큰은 화면에 표시하지 않고, 다음 인증 API 요청을 위해 브라우저에 저장한다.
 		localStorage.setItem('jungle-faq-token', auth.access_token);
@@ -70,6 +95,7 @@ function App() {
 	 */
 	function handleLogout() {
 		setCurrentUser(null);
+		setAccessToken('');
 		localStorage.removeItem('jungle-faq-user');
 		localStorage.removeItem('jungle-faq-token');
 	}
@@ -95,7 +121,10 @@ function App() {
 				<>
 					{/* App이 만든 함수를 PostForm의 onPostCreated props로 넘긴다.
 					    PostForm은 저장 성공 후 이 함수를 호출해 App의 posts 갱신을 요청한다. */}
-					<PostForm onPostCreated={handlePostCreated} />
+					<PostForm
+						accessToken={accessToken}
+						onPostCreated={handlePostCreated}
+					/>
 
 					<section
 						className="posts-section"
@@ -116,7 +145,14 @@ function App() {
 						{!isLoading && !loadError && posts.length > 0 && (
 							<div className="post-list">
 								{posts.map((post) => (
-									<PostItem key={post.id} post={post} />
+									<PostItem
+										key={post.id}
+										post={post}
+										currentUser={currentUser}
+										accessToken={accessToken}
+										onPostUpdated={handlePostUpdated}
+										onPostDeleted={handlePostDeleted}
+									/>
 								))}
 							</div>
 						)}

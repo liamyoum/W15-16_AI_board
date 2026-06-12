@@ -4,7 +4,7 @@ import hmac
 import json
 import os
 
-from fastapi import FastAPI, Header, HTTPException, status
+from fastapi import FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -12,9 +12,12 @@ from app.database import (
     authenticate_user_with_sqlalchemy,
     create_post_with_sqlalchemy,
     create_user_with_sqlalchemy,
+    delete_post_with_sqlalchemy,
     ensure_database_schema,
     fetch_posts_with_sqlalchemy,
+    get_post_with_sqlalchemy,
     get_user_by_id_with_sqlalchemy,
+    update_post_with_sqlalchemy,
 )
 
 
@@ -70,6 +73,7 @@ class PostResponse(BaseModel):
     title: str
     content: str
     category: str
+    author_email: str | None = None
 
 
 class PostListResponse(BaseModel):
@@ -89,6 +93,16 @@ class PostCreateRequest(BaseModel):
     title: str
     content: str
     category: str
+
+
+class PostUpdateRequest(BaseModel):
+    """PATCH /posts/{post_id} 요청 body의 모양이다.
+    수정하려는 필드만 보내면 되고, 빠진 필드는 기존 값을 유지한다.
+    """
+
+    title: str | None = None
+    content: str | None = None
+    category: str | None = None
 
 
 def _create_access_token(user_id: int) -> str:
@@ -142,6 +156,27 @@ def _get_bearer_token(authorization: str | None) -> str:
             detail="로그인이 필요합니다.",
         )
     return authorization.removeprefix("Bearer ").strip()
+
+
+def _require_current_user(authorization: str | None) -> dict[str, object]:
+    """Authorization 헤더의 토큰으로 현재 로그인 사용자를 확인한다.
+    인증이 필요한 게시글 작성/수정/삭제 API가 공통으로 사용한다.
+    """
+    token = _get_bearer_token(authorization)
+    user_id = _read_access_token(token)
+    if user_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="유효하지 않은 토큰입니다.",
+        )
+
+    user = get_user_by_id_with_sqlalchemy(user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="사용자를 찾을 수 없습니다.",
+        )
+    return user
 
 
 def _validate_auth_input(email: str, password: str) -> None:
@@ -224,21 +259,7 @@ def get_current_user(authorization: str | None = Header(default=None)):
     """현재 토큰이 가리키는 로그인 사용자를 반환한다.
     React가 저장한 토큰 검증이나 이후 인증이 필요한 API의 기본 흐름으로 사용한다.
     """
-    token = _get_bearer_token(authorization)
-    user_id = _read_access_token(token)
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 토큰입니다.",
-        )
-
-    user = get_user_by_id_with_sqlalchemy(user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="사용자를 찾을 수 없습니다.",
-        )
-    return user
+    return _require_current_user(authorization)
 
 
 @app.get("/posts", response_model=PostListResponse)
@@ -250,14 +271,94 @@ def get_posts():
     return {"posts": fetch_posts_with_sqlalchemy()}
 
 
+@app.get("/posts/{post_id}", response_model=PostResponse)
+def get_post(post_id: int):
+    """게시글 id로 FAQ 게시글 하나를 조회한다.
+    React의 상세/수정 흐름에서 특정 글의 최신 값을 확인할 때 사용한다.
+    없는 글이면 404를 반환한다.
+    """
+    post = get_post_with_sqlalchemy(post_id)
+    if post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="게시글을 찾을 수 없습니다.",
+        )
+    return post
+
+
 @app.post("/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
-def create_post(new_post: PostCreateRequest):
+def create_post(
+    new_post: PostCreateRequest,
+    authorization: str | None = Header(default=None),
+):
     """새 FAQ 게시글을 PostgreSQL posts 테이블에 저장한다.
     요청 body는 PostCreateRequest로 검증하고, 생성 결과는 PostResponse로 반환한다.
-    DB가 만든 id를 포함해 프론트엔드가 바로 사용할 수 있는 모양으로 응답한다.
+    Authorization 헤더의 토큰으로 작성자를 확인해 author_id에 연결한다.
     """
+    current_user = _require_current_user(authorization)
+
     return create_post_with_sqlalchemy(
         title=new_post.title,
         content=new_post.content,
         category=new_post.category,
+        author_id=int(current_user["id"]),
     )
+
+
+@app.patch("/posts/{post_id}", response_model=PostResponse)
+def update_post(
+    post_id: int,
+    updated_post: PostUpdateRequest,
+    authorization: str | None = Header(default=None),
+):
+    """게시글 일부 필드를 수정한다.
+    Authorization 헤더로 현재 사용자를 확인하고, 작성자 본인만 수정할 수 있게 한다.
+    """
+    current_user = _require_current_user(authorization)
+
+    try:
+        post = update_post_with_sqlalchemy(
+            post_id=post_id,
+            user_id=int(current_user["id"]),
+            title=updated_post.title,
+            content=updated_post.content,
+            category=updated_post.category,
+        )
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
+        ) from exc
+
+    if post is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="게시글을 찾을 수 없습니다.",
+        )
+    return post
+
+
+@app.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(
+    post_id: int,
+    authorization: str | None = Header(default=None),
+):
+    """게시글을 삭제한다.
+    Authorization 헤더로 현재 사용자를 확인하고, 작성자 본인만 삭제할 수 있게 한다.
+    """
+    current_user = _require_current_user(authorization)
+
+    try:
+        deleted = delete_post_with_sqlalchemy(
+            post_id=post_id, user_id=int(current_user["id"])
+        )
+    except PermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
+        ) from exc
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="게시글을 찾을 수 없습니다.",
+        )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

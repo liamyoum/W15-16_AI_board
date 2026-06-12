@@ -4,6 +4,7 @@ export type Post = {
 	title: string;
 	content: string;
 	category: string;
+	author_email: string | null;
 };
 
 // 백엔드 POST /posts 요청 body와 같은 게시글 작성 데이터 모양이다.
@@ -11,6 +12,13 @@ export type PostCreateRequest = {
 	title: string;
 	content: string;
 	category: string;
+};
+
+// 백엔드 PATCH /posts/{id} 요청 body와 같은 게시글 수정 데이터 모양이다.
+export type PostUpdateRequest = {
+	title?: string;
+	content?: string;
+	category?: string;
 };
 
 export type PostListResponse = {

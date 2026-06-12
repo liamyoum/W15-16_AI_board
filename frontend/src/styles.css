@@ -142,7 +142,8 @@ h1 {
 }
 
 .auth-section button,
-.post-form button {
+.post-form button,
+.post-actions button {
   justify-self: start;
   padding: 11px 16px;
   border: 0;
@@ -154,13 +155,19 @@ h1 {
   cursor: pointer;
 }
 
-.auth-section .secondary-button {
+.secondary-button {
   background: #e2e8f0;
   color: #172033;
 }
 
+.danger-button {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .auth-section button:disabled,
-.post-form button:disabled {
+.post-form button:disabled,
+.post-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -178,6 +185,9 @@ h1 {
 }
 
 .post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 8px;
   color: #0f766e;
   font-size: 13px;
@@ -193,6 +203,40 @@ h1 {
   margin: 0;
   color: #475569;
   line-height: 1.6;
+}
+
+.post-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.post-edit-form {
+  display: grid;
+  gap: 14px;
+}
+
+.post-edit-form label {
+  display: grid;
+  gap: 6px;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.post-edit-form input,
+.post-edit-form textarea {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  font: inherit;
+}
+
+.post-edit-form textarea {
+  resize: vertical;
 }
 
 .status,

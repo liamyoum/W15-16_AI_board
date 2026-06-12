@@ -5,6 +5,7 @@ import type { Post } from './types';
 // PostForm이 부모(App)에게 받아야 하는 props의 타입이다.
 // 실제 함수 내용은 App이 만들고, PostForm은 저장 성공 후 호출만 한다.
 type PostFormProps = {
+	accessToken: string;
 	onPostCreated: (post: Post) => void; // Post를 받아 실행하고 반환값은 없는 함수
 };
 
@@ -12,7 +13,7 @@ type PostFormProps = {
  * 입력값 state를 직접 관리하고, POST /posts 요청을 보낸다.
  * 생성 성공 시 부모(App)에게 새 게시글을 넘겨 목록 갱신을 요청한다.
  */
-function PostForm({ onPostCreated }: PostFormProps) {
+function PostForm({ accessToken, onPostCreated }: PostFormProps) {
 	const [formError, setFormError] = useState<string | null>(null);
 	const [title, setTitle] = useState('');
 	const [content, setContent] = useState('');
@@ -38,11 +39,14 @@ function PostForm({ onPostCreated }: PostFormProps) {
 		try {
 			setIsSubmitting(true);
 			setFormError(null);
-			const createdPost = await createPost({
-				title: trimmedTitle,
-				content: trimmedContent,
-				category: trimmedCategory,
-			});
+			const createdPost = await createPost(
+				accessToken,
+				{
+					title: trimmedTitle,
+					content: trimmedContent,
+					category: trimmedCategory,
+				}
+			);
 
 			// PostForm이 posts state를 직접 바꾸지 않고, 부모에게 생성 결과를 알린다.
 			onPostCreated(createdPost);

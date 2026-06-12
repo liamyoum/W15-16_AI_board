@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
 -- 지금은 최소 게시글 목록 조회에 필요한 필드만 만든다.
 CREATE TABLE IF NOT EXISTS posts (
   id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   content TEXT NOT NULL,
   category TEXT NOT NULL,
