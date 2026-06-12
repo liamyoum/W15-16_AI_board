@@ -1,8 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from app.database import fetch_posts_with_sqlalchemy
+from app.database import create_post_with_sqlalchemy, fetch_posts_with_sqlalchemy
 
 
 app = FastAPI(title="Jungle Campus Life AI FAQ Board")
@@ -36,6 +36,17 @@ class PostListResponse(BaseModel):
     posts: list[PostResponse]
 
 
+class PostCreateRequest(BaseModel):
+    """POST /posts 요청 body의 모양이다.
+    클라이언트가 새 게시글을 만들 때 제목, 본문, 카테고리를 보낸다.
+    FastAPI는 이 모델을 기준으로 요청 JSON을 검증한다.
+    """
+
+    title: str
+    content: str
+    category: str
+
+
 @app.get("/health")
 def health_check():
     """서버가 정상적으로 실행 중인지 확인하는 가장 작은 API다.
@@ -52,3 +63,16 @@ def get_posts():
     프론트엔드는 posts 배열을 state에 저장해 목록 화면을 만든다.
     """
     return {"posts": fetch_posts_with_sqlalchemy()}
+
+
+@app.post("/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
+def create_post(new_post: PostCreateRequest):
+    """새 FAQ 게시글을 PostgreSQL posts 테이블에 저장한다.
+    요청 body는 PostCreateRequest로 검증하고, 생성 결과는 PostResponse로 반환한다.
+    DB가 만든 id를 포함해 프론트엔드가 바로 사용할 수 있는 모양으로 응답한다.
+    """
+    return create_post_with_sqlalchemy(
+        title=new_post.title,
+        content=new_post.content,
+        category=new_post.category,
+    )

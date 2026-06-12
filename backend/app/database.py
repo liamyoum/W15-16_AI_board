@@ -45,6 +45,26 @@ def fetch_posts_with_sqlalchemy() -> list[dict[str, object]]:
     ]
 
 
+def create_post_with_sqlalchemy(title: str, content: str, category: str) -> dict[str, object]:
+    """SQLAlchemy로 새 FAQ 게시글을 DB에 저장한다.
+    commit으로 INSERT를 확정하고, refresh로 DB가 만든 id를 객체에 반영한다.
+    API 응답 모양에 맞게 생성된 Post 객체를 dict로 바꿔 반환한다.
+    """
+    post = Post(title=title, content=content, category=category)
+
+    with SessionLocal() as session:
+        session.add(post)
+        session.commit()
+        session.refresh(post)
+
+        return {
+            "id": post.id,
+            "title": post.title,
+            "content": post.content,
+            "category": post.category,
+        }
+
+
 def get_db_session() -> Generator[Session, None, None]:
     """FastAPI Depends에서 사용할 SQLAlchemy Session을 만든다.
     요청 처리 동안 Session 하나를 열고, 끝나면 닫는다.
