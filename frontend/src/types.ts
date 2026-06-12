@@ -6,7 +6,13 @@ export type Post = {
 	category: string;
 };
 
+// 백엔드 POST /posts 요청 body와 같은 게시글 작성 데이터 모양이다.
+export type PostCreateRequest = {
+	title: string;
+	content: string;
+	category: string;
+};
+
 export type PostListResponse = {
 	posts: Post[];
 };
-
