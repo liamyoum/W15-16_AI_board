@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload, sessionmaker
 
-from app.models import Base, Post, User
+from app.models import Base, Comment, Post, User
 
 
 # 로컬 개발 기본값이다. 배포할 때는 DATABASE_URL 환경변수로 실제 DB 주소를 넣는다.
@@ -90,6 +90,7 @@ def _user_to_dict(user: User) -> dict[str, object]:
 def _post_to_dict(post: Post) -> dict[str, object]:
     """DB Post 객체를 프론트엔드 응답에 맞는 dict로 바꾼다.
     author 관계가 있으면 작성자 이메일을 함께 내려 수정/삭제 UI 판단에 사용한다.
+    comments 관계가 있으면 댓글 목록도 함께 내려 게시글 아래에 표시한다.
     """
     return {
         "id": post.id,
@@ -97,6 +98,19 @@ def _post_to_dict(post: Post) -> dict[str, object]:
         "content": post.content,
         "category": post.category,
         "author_email": post.author.email if post.author else None,
+        "comments": [_comment_to_dict(comment) for comment in post.comments],
+    }
+
+
+def _comment_to_dict(comment: Comment) -> dict[str, object]:
+    """DB Comment 객체를 프론트엔드 응답에 맞는 dict로 바꾼다.
+    댓글 작성자 이메일을 함께 내려 댓글 목록에서 작성자를 보여준다.
+    """
+    return {
+        "id": comment.id,
+        "post_id": comment.post_id,
+        "content": comment.content,
+        "author_email": comment.author.email if comment.author else None,
     }
 
 
@@ -146,7 +160,12 @@ def fetch_posts_with_sqlalchemy() -> list[dict[str, object]]:
     """
     with SessionLocal() as session:
         posts = session.scalars(
-            select(Post).options(selectinload(Post.author)).order_by(Post.id)
+            select(Post)
+            .options(
+                selectinload(Post.author),
+                selectinload(Post.comments).selectinload(Comment.author),
+            )
+            .order_by(Post.id)
         ).all()
 
     return [_post_to_dict(post) for post in posts]
@@ -159,7 +178,10 @@ def get_post_with_sqlalchemy(post_id: int) -> dict[str, object] | None:
     with SessionLocal() as session:
         post = session.scalar(
             select(Post)
-            .options(selectinload(Post.author))
+            .options(
+                selectinload(Post.author),
+                selectinload(Post.comments).selectinload(Comment.author),
+            )
             .where(Post.id == post_id)
         )
         return _post_to_dict(post) if post else None
@@ -183,7 +205,10 @@ def create_post_with_sqlalchemy(
 
         post = session.scalar(
             select(Post)
-            .options(selectinload(Post.author))
+            .options(
+                selectinload(Post.author),
+                selectinload(Post.comments).selectinload(Comment.author),
+            )
             .where(Post.id == post.id)
         )
         return _post_to_dict(post)
@@ -203,7 +228,10 @@ def update_post_with_sqlalchemy(
     with SessionLocal() as session:
         post = session.scalar(
             select(Post)
-            .options(selectinload(Post.author))
+            .options(
+                selectinload(Post.author),
+                selectinload(Post.comments).selectinload(Comment.author),
+            )
             .where(Post.id == post_id)
         )
         if post is None:
@@ -238,6 +266,31 @@ def delete_post_with_sqlalchemy(post_id: int, user_id: int) -> bool:
         session.delete(post)
         session.commit()
         return True
+
+
+def create_comment_with_sqlalchemy(
+    post_id: int, author_id: int, content: str
+) -> dict[str, object] | None:
+    """게시글에 댓글을 저장한다.
+    없는 게시글이면 None을 반환해 라우터가 404로 바꿀 수 있게 한다.
+    댓글 작성자는 Authorization 토큰에서 확인한 사용자 id로 연결한다.
+    """
+    with SessionLocal() as session:
+        post = session.get(Post, post_id)
+        if post is None:
+            return None
+
+        comment = Comment(post_id=post_id, author_id=author_id, content=content)
+        session.add(comment)
+        session.commit()
+        session.refresh(comment)
+
+        comment = session.scalar(
+            select(Comment)
+            .options(selectinload(Comment.author))
+            .where(Comment.id == comment.id)
+        )
+        return _comment_to_dict(comment)
 
 
 def get_db_session() -> Generator[Session, None, None]:

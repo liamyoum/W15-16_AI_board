@@ -5,6 +5,15 @@ export type Post = {
 	content: string;
 	category: string;
 	author_email: string | null;
+	comments: PostComment[];
+};
+
+// 백엔드 댓글 응답과 프론트 댓글 목록이 공유하는 데이터 모양이다.
+export type PostComment = {
+	id: number;
+	post_id: number;
+	content: string;
+	author_email: string | null;
 };
 
 // 백엔드 POST /posts 요청 body와 같은 게시글 작성 데이터 모양이다.
@@ -19,6 +28,11 @@ export type PostUpdateRequest = {
 	title?: string;
 	content?: string;
 	category?: string;
+};
+
+// 백엔드 POST /posts/{id}/comments 요청 body와 같은 댓글 작성 데이터 모양이다.
+export type CommentCreateRequest = {
+	content: string;
 };
 
 export type PostListResponse = {

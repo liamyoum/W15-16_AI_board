@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from 'react';
-import { deletePost, updatePost } from './api/posts';
-import type { Post, User } from './types';
+import { createComment, deletePost, updatePost } from './api/posts';
+import type { Post, PostComment, User } from './types';
 
 type PostItemProps = {
 	post: Post;
@@ -8,6 +8,7 @@ type PostItemProps = {
 	accessToken: string;
 	onPostUpdated: (post: Post) => void;
 	onPostDeleted: (postId: number) => void;
+	onCommentCreated: (postId: number, comment: PostComment) => void;
 };
 
 /** 게시글 하나를 화면에 보여주는 재사용 컴포넌트다.
@@ -20,13 +21,16 @@ function PostItem({
 	accessToken,
 	onPostUpdated,
 	onPostDeleted,
+	onCommentCreated,
 }: PostItemProps) {
 	const [isEditing, setIsEditing] = useState(false);
 	const [title, setTitle] = useState(post.title);
 	const [content, setContent] = useState(post.content);
 	const [category, setCategory] = useState(post.category);
+	const [commentContent, setCommentContent] = useState('');
 	const [itemError, setItemError] = useState<string | null>(null);
 	const [isSaving, setIsSaving] = useState(false);
+	const [isCommentSubmitting, setIsCommentSubmitting] = useState(false);
 
 	// 작성자 이메일이 현재 로그인 사용자와 같을 때만 수정/삭제 버튼을 보여준다.
 	const canManagePost = post.author_email === currentUser.email;
@@ -93,6 +97,35 @@ function PostItem({
 			);
 		} finally {
 			setIsSaving(false);
+		}
+	}
+
+	/** 댓글 작성 폼 제출을 처리한다.
+	 * POST /posts/{id}/comments에 댓글 내용을 보내고, 성공하면 부모 목록 state를 갱신한다.
+	 */
+	async function handleCreateComment(event: FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+
+		const trimmedContent = commentContent.trim();
+		if (!trimmedContent) {
+			setItemError('댓글 내용을 입력하세요.');
+			return;
+		}
+
+		try {
+			setIsCommentSubmitting(true);
+			setItemError(null);
+			const createdComment = await createComment(accessToken, post.id, {
+				content: trimmedContent,
+			});
+			onCommentCreated(post.id, createdComment);
+			setCommentContent('');
+		} catch (err) {
+			setItemError(
+				err instanceof Error ? err.message : '댓글 작성에 실패했습니다.'
+			);
+		} finally {
+			setIsCommentSubmitting(false);
 		}
 	}
 
@@ -172,6 +205,37 @@ function PostItem({
 					</button>
 				</div>
 			)}
+
+			<section className="comments-section" aria-label="댓글">
+				<h3>댓글</h3>
+				{post.comments.length === 0 && (
+					<p className="comment-empty">아직 댓글이 없습니다.</p>
+				)}
+
+				{post.comments.length > 0 && (
+					<div className="comment-list">
+						{post.comments.map((comment) => (
+							<div className="comment-item" key={comment.id}>
+								<div className="comment-author">
+									{comment.author_email ?? '알 수 없음'}
+								</div>
+								<p>{comment.content}</p>
+							</div>
+						))}
+					</div>
+				)}
+
+				<form className="comment-form" onSubmit={handleCreateComment}>
+					<input
+						value={commentContent}
+						onChange={(event) => setCommentContent(event.target.value)}
+						placeholder="댓글을 입력하세요."
+					/>
+					<button type="submit" disabled={isCommentSubmitting}>
+						{isCommentSubmitting ? '작성 중...' : '댓글 작성'}
+					</button>
+				</form>
+			</section>
 
 			{itemError && <p className="error">{itemError}</p>}
 		</article>

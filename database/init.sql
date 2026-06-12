@@ -18,6 +18,16 @@ CREATE TABLE IF NOT EXISTS posts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- FAQ 게시글에 달리는 댓글을 저장하는 테이블이다.
+-- 댓글은 하나의 게시글에 속하고, 로그인 사용자가 작성한다.
+CREATE TABLE IF NOT EXISTS comments (
+  id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- 로컬에서 DB 조회 흐름을 확인하기 위한 샘플 데이터다.
 -- 같은 제목이 이미 있으면 다시 실행해도 중복으로 넣지 않는다.
 INSERT INTO posts (title, content, category)

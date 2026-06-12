@@ -1,5 +1,7 @@
 import type {
+	CommentCreateRequest,
 	Post,
+	PostComment,
 	PostCreateRequest,
 	PostListResponse,
 	PostUpdateRequest,
@@ -84,4 +86,26 @@ export async function deletePost(token: string, postId: number): Promise<void> {
 	if (!response.ok) {
 		throw new Error('게시글 삭제에 실패했습니다.');
 	}
+}
+
+/** FastAPI의 POST /posts/{id}/comments를 호출해 댓글을 작성한다.
+ * 댓글도 로그인 사용자가 작성하므로 Authorization 헤더에 토큰을 함께 보낸다.
+ * 성공하면 생성된 댓글 하나를 반환한다.
+ */
+export async function createComment(
+	token: string,
+	postId: number,
+	newComment: CommentCreateRequest
+): Promise<PostComment> {
+	const response = await fetch(`${API_BASE_URL}/posts/${postId}/comments`, {
+		method: 'POST',
+		headers: authHeaders(token),
+		body: JSON.stringify(newComment),
+	});
+
+	if (!response.ok) {
+		throw new Error('댓글 작성에 실패했습니다.');
+	}
+
+	return response.json();
 }

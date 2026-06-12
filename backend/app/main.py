@@ -6,10 +6,11 @@ import os
 
 from fastapi import FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.database import (
     authenticate_user_with_sqlalchemy,
+    create_comment_with_sqlalchemy,
     create_post_with_sqlalchemy,
     create_user_with_sqlalchemy,
     delete_post_with_sqlalchemy,
@@ -63,6 +64,17 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 
+class CommentResponse(BaseModel):
+    """프론트엔드에 보내는 댓글 하나의 응답 모양이다.
+    댓글은 post_id로 게시글에 속하고, author_email로 작성자를 표시한다.
+    """
+
+    id: int
+    post_id: int
+    content: str
+    author_email: str | None = None
+
+
 class PostResponse(BaseModel):
     """프론트엔드에 보내는 FAQ 게시글 하나의 응답 모양이다.
     지금은 정적 데이터에 쓰고, 나중에는 DB row를 이 모양으로 반환한다.
@@ -74,6 +86,7 @@ class PostResponse(BaseModel):
     content: str
     category: str
     author_email: str | None = None
+    comments: list[CommentResponse] = Field(default_factory=list)
 
 
 class PostListResponse(BaseModel):
@@ -103,6 +116,14 @@ class PostUpdateRequest(BaseModel):
     title: str | None = None
     content: str | None = None
     category: str | None = None
+
+
+class CommentCreateRequest(BaseModel):
+    """POST /posts/{post_id}/comments 요청 body의 모양이다.
+    로그인 사용자가 특정 게시글에 댓글을 작성할 때 content만 보낸다.
+    """
+
+    content: str
 
 
 def _create_access_token(user_id: int) -> str:
@@ -362,3 +383,38 @@ def delete_post(
             detail="게시글을 찾을 수 없습니다.",
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@app.post(
+    "/posts/{post_id}/comments",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_comment(
+    post_id: int,
+    new_comment: CommentCreateRequest,
+    authorization: str | None = Header(default=None),
+):
+    """게시글에 댓글을 작성한다.
+    Authorization 헤더로 현재 사용자를 확인하고 comments.author_id에 연결한다.
+    없는 게시글이면 404를 반환한다.
+    """
+    current_user = _require_current_user(authorization)
+    content = new_comment.content.strip()
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="댓글 내용을 입력하세요.",
+        )
+
+    comment = create_comment_with_sqlalchemy(
+        post_id=post_id,
+        author_id=int(current_user["id"]),
+        content=content,
+    )
+    if comment is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="게시글을 찾을 수 없습니다.",
+        )
+    return comment

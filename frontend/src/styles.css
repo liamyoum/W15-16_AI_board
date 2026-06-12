@@ -239,6 +239,75 @@ h1 {
   resize: vertical;
 }
 
+.comments-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.comments-section h3 {
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+
+.comment-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.comment-item {
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.comment-author {
+  margin-bottom: 4px;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.comment-item p,
+.comment-empty {
+  margin: 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.comment-form {
+  display: flex;
+  gap: 8px;
+}
+
+.comment-form input {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #172033;
+  font: inherit;
+}
+
+.comment-form button {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #0f766e;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.comment-form button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .status,
 .error {
   padding: 16px 18px;

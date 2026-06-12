@@ -3,7 +3,7 @@ import { fetchPosts } from './api/posts';
 import AuthPanel from './AuthPanel';
 import PostItem from './PostItem';
 import PostForm from './PostForm';
-import type { AuthResponse, Post, User } from './types';
+import type { AuthResponse, Post, PostComment, User } from './types';
 
 /** 앱의 첫 화면을 담당하는 최상위 컴포넌트다.
  * 서버에서 받은 posts를 state로 관리하고, 로딩/에러/목록 화면을 결정한다.
@@ -76,6 +76,19 @@ function App() {
 	function handlePostDeleted(postId: number) {
 		setPosts((currentPosts) =>
 			currentPosts.filter((post) => post.id !== postId)
+		);
+	}
+
+	/** PostItem에서 댓글 작성이 성공했을 때 실행된다.
+	 * 해당 게시글의 comments 배열에 새 댓글만 추가해 화면을 갱신한다.
+	 */
+	function handleCommentCreated(postId: number, comment: PostComment) {
+		setPosts((currentPosts) =>
+			currentPosts.map((post) =>
+				post.id === postId
+					? { ...post, comments: [...post.comments, comment] }
+					: post
+			)
 		);
 	}
 
@@ -152,6 +165,7 @@ function App() {
 										accessToken={accessToken}
 										onPostUpdated={handlePostUpdated}
 										onPostDeleted={handlePostDeleted}
+										onCommentCreated={handleCommentCreated}
 									/>
 								))}
 							</div>
